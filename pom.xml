@@ -27,6 +27,7 @@
     <modules>
         <module>spring-commons-exception</module>
         <module>spring-commons-exception-handler</module>
+        <module>spring-commons-logger</module>
     </modules>
     <licenses>
         <license>

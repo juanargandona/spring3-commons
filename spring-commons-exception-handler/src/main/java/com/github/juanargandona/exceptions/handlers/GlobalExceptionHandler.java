@@ -1,6 +1,7 @@
 package com.github.juanargandona.exceptions.handlers;
 
 import com.github.juanargandona.exceptions.RestException;
+import com.github.juanargandona.exceptions.impl.NotFoundException;
 import com.github.juanargandona.exceptions.model.ErrorMessage;
 import com.github.juanargandona.exceptions.model.ExceptionDetail;
 import org.apache.commons.lang3.reflect.FieldUtils;
@@ -28,9 +29,31 @@ public class GlobalExceptionHandler {
 	@Autowired
 	private MessageSource messageSource;
 
-	@ExceptionHandler(value = Exception.class)
-	protected ResponseEntity<ErrorMessage> handleDefault(Exception ex, HttpServletRequest request, Locale locale) {
-		return new ResponseEntity<>(new ErrorMessage(Arrays.asList(new ExceptionDetail(String.valueOf(HttpStatus.INTERNAL_SERVER_ERROR.value()), ex.getMessage(), Optional.empty())), request), HttpStatus.INTERNAL_SERVER_ERROR);
+	@ExceptionHandler(NestedRuntimeException.class)
+	public ResponseEntity<ErrorMessage> handleNestedRuntimeException(NestedRuntimeException ex, HttpServletRequest request) {
+		return new ResponseEntity<>(new ErrorMessage(getExceptionDetails(ex), request),
+				HttpStatus.BAD_REQUEST);
+	}
+
+	@ExceptionHandler(NotFoundException.class)
+	public ResponseEntity<ErrorMessage> handleNotFoundException(NotFoundException ex, HttpServletRequest request, Locale locale) {
+		return new ResponseEntity<>(new ErrorMessage(getExceptionDetails(ex, locale), request),
+				HttpStatus.NOT_FOUND);
+	}
+
+	@ExceptionHandler(MethodArgumentNotValidException.class)
+	public ResponseEntity<ErrorMessage> handleValidationExceptions(MethodArgumentNotValidException ex, HttpServletRequest request) {
+		return validationBinding(ex.getBindingResult(), request);
+	}
+
+	@ExceptionHandler(ConstraintViolationException.class)
+	public ResponseEntity<ErrorMessage> handleValidationExceptions(ConstraintViolationException ex, HttpServletRequest request) {
+		return validationBinding(ex.getConstraintViolations(), request);
+	}
+
+	@ExceptionHandler(BindException.class)
+	public ResponseEntity<ErrorMessage> handleValidationExceptions(BindException ex, HttpServletRequest request) {
+		return validationBinding(ex.getBindingResult(), request);
 	}
 
 	@ExceptionHandler(value = RestException.class)
@@ -38,33 +61,17 @@ public class GlobalExceptionHandler {
 		return new ResponseEntity<>(new ErrorMessage(this.getExceptionDetails(ex, locale), request), ex.getHttpCode());
 	}
 
-	@ExceptionHandler(MethodArgumentNotValidException.class)
-	public ResponseEntity<ErrorMessage> handleValidationExceptions(MethodArgumentNotValidException ex, HttpServletRequest request) {
-		return validationBinnding(ex.getBindingResult(), request);
+	@ExceptionHandler(value = Exception.class)
+	protected ResponseEntity<ErrorMessage> handleDefault(Exception ex, HttpServletRequest request, Locale locale) {
+		return new ResponseEntity<>(new ErrorMessage(Arrays.asList(new ExceptionDetail(String.valueOf(HttpStatus.INTERNAL_SERVER_ERROR.value()), ex.getMessage(), Optional.empty())), request), HttpStatus.INTERNAL_SERVER_ERROR);
 	}
 
-	@ExceptionHandler(NestedRuntimeException.class)
-	public ResponseEntity<ErrorMessage> handleNestedRuntimeException(NestedRuntimeException ex, HttpServletRequest request) {
-		return new ResponseEntity<>(new ErrorMessage(getExceptionDetails(ex), request),
-				HttpStatus.BAD_REQUEST);
-	}
-
-	@ExceptionHandler(ConstraintViolationException.class)
-	public ResponseEntity<ErrorMessage> handleValidationExceptions(ConstraintViolationException ex, HttpServletRequest request) {
-		return validationBinnding(ex.getConstraintViolations(), request);
-	}
-
-	@ExceptionHandler(BindException.class)
-	public ResponseEntity<ErrorMessage> handleValidationExceptions(BindException ex, HttpServletRequest request) {
-		return validationBinnding(ex.getBindingResult(), request);
-	}
-
-	private ResponseEntity<ErrorMessage> validationBinnding(BindingResult results, HttpServletRequest request) {
+	private ResponseEntity<ErrorMessage> validationBinding(BindingResult results, HttpServletRequest request) {
 		return new ResponseEntity<>(new ErrorMessage(getExceptionDetails(results), request),
 				HttpStatus.BAD_REQUEST);
 	}
 
-	private ResponseEntity<ErrorMessage> validationBinnding(Set<ConstraintViolation<?>> results, HttpServletRequest request) {
+	private ResponseEntity<ErrorMessage> validationBinding(Set<ConstraintViolation<?>> results, HttpServletRequest request) {
 		return new ResponseEntity<>(new ErrorMessage(getExceptionDetails(results), request),
 				HttpStatus.BAD_REQUEST);
 	}
